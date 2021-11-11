@@ -2,45 +2,47 @@ package no.ntnu.idi.krisvaa.idatt2101;
 
 import java.io.*;
 import java.net.URL;
+import java.util.Locale;
 
 public class Main {
 
     public static void main(String[] args) throws IOException {
+        if(args.length != 3) {
+            System.out.println("Illegal arguments. Please provide as follows: action [compress or uncompress], infile [URL or FilePath], Outfile [FilePath]");
+            return;
+        }
+        String action = args[0];
+        String inFile = args[1];
+        String outFile = args[2];
+
         LempelZivCompressor l = new LempelZivCompressor();
+        HuffmannCodeCompressor hc = new HuffmannCodeCompressor();
 
-        byte[] data = new URL("http://www.iie.ntnu.no/fag/_alg/kompr/diverse.txt").openStream().readAllBytes();
-
-        //byte[] data = new FileInputStream("/Users/kristianaars/Downloads/text.text").readAllBytes();
-
-        /*for(int i = 0; i < data.length; i++) {
-            if(i % 10 == 0){
-                System.out.println();
-            }
-
-            byte b = data[i];
-
-            System.out.print((char) b);
-        }*/
-
-        System.out.println("Original size: " + data.length);
-
-        byte[] LZcompressedData = l.compress(data);
-
-        for(byte b : LZcompressedData) {
-            //System.out.print((char) b);
+        byte[] data;
+        if(inFile.startsWith("https://") || inFile.startsWith("http://")) {
+            data = new URL(inFile).openStream().readAllBytes();
+        } else {
+            data = new FileInputStream(inFile).readAllBytes();
         }
 
-        System.out.println("Compressed size: " + LZcompressedData.length);
+        byte[] computedData;
+        if(action.toLowerCase().equals("compress")) {
+            System.out.println("Original size: " + data.length);
+            System.out.println("Compressing with LZ... ");
+            byte[] LZcompressedData = l.compress(data);
 
+            System.out.println("Compressed size (LZ): " + LZcompressedData.length);
 
-        byte[] decomrpessedData = l.decompress(LZcompressedData);
-        System.out.println("Decompressed size: " + decomrpessedData.length);
+            computedData = hc.compress(LZcompressedData);
+            System.out.println("Compressed size (LZ+HF): " + computedData.length);
+        } else if(action.toLowerCase().equals("decompress")){
+            computedData = l.decompress(hc.decompress(data));
+        } else {
+            System.out.println("Unknown action \"" + action + "\"");
+            return;
+        }
 
-        HuffmannCodeCompressor hc = new HuffmannCodeCompressor();
-        hc.compress(decomrpessedData);
-
-        saveFile("/Users/kristianaars/Downloads/div.txt.lz", LZcompressedData);
-        saveFile("/Users/kristianaars/Downloads/div.txt", decomrpessedData);
+        saveFile(outFile, computedData);
     }
 
     public static void saveFile(String filePath, byte[] data) throws IOException {
